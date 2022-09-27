@@ -10,22 +10,17 @@ local utils = require 'src.utils'
 
 lust.paths.match = {
     test = function(value, pattern)
-        if type(value) ~= 'string' then value = tostring(value) end
+        if type(value) ~= 'string' then
+            value = tostring(value)
+        end
         local result = string.find(value, pattern)
-        return result ~= nil, 'expected ' .. value .. ' to match pattern [[' .. pattern .. ']]',
-        'expected ' .. value .. ' to not match pattern [[' .. pattern .. ']]'
-    end
+        return result ~= nil, 'expected ' .. value .. ' to match pattern [[' ..
+                   pattern .. ']]', 'expected ' .. value ..
+                   ' to not match pattern [[' .. pattern .. ']]'
+    end,
 }
 table.insert(lust.paths.to, 'match')
 table.insert(lust.paths.to_not, 'match')
-
-describe('testing testing', function ()
-    it('matching!', function ()
-        expect('RED').to_not.match('BLUE')
-        expect('REDDIT').to.match('RED')
-        expect(utils.Array{1, 2, 3}).to.match('Array {%d+, %d+, %d+}')
-    end)
-end)
 
 describe('Test Utilities', function()
 
