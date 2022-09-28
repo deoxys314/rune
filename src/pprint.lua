@@ -13,6 +13,8 @@ end
 local rep = string.rep
 local spaces = function(level, indent) return rep(' ', level, indent) end
 
+local mod = {}
+
 local pprint
 
 --- Pretty print objects.
@@ -53,4 +55,17 @@ pprint = function(object, indent, level, seen_tables)
     end
 end
 
-return pprint
+mod.pprint = pprint
+
+mod.dump = function(obj)
+    io.write(pprint(obj))
+    io.write('\n')
+end
+
+setmetatable(mod, {
+    __call = function(_t, obj, indent, level, seen_tables)
+        return pprint(obj, indent, level, seen_tables)
+    end,
+})
+
+return mod
