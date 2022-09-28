@@ -47,7 +47,7 @@ pprint = function(object, indent, level, seen_tables)
             return s .. spaces((mylevel - 1) * myindent) .. '}'
         end
     elseif type(object) == 'string' then
-        return '"' .. object .. '"'
+        return fmt('%q', object)
     else
         return tostring(object)
     end
