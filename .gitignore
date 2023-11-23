@@ -94,3 +94,5 @@ tags
 [._]*.un~
 
 # End of https://www.toptal.com/developers/gitignore/api/lua,osx,vim
+
+doc/*

@@ -62,3 +62,5 @@ This project is formatted with
 [lua-format](https://github.com/Koihik/LuaFormatter).
 
 This project is tested with [lust](https://github.com/bjornbytes/lust).
+
+This project is documented with [ldoc](https://github.com/lunarmodules/ldoc)
