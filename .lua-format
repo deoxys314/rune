@@ -1,7 +1,11 @@
+break_after_table_lb: true
+chop_down_table: true
+column_limit: 99
 double_quote_to_single_quote: true
 extra_sep_at_table_end: true
 indent_width: 4
 keep_simple_control_block_one_line: false
 keep_simple_function_one_line: true
+spaces_inside_table_braces: true
 tab_width: 4
 use_tab: false
