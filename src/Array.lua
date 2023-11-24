@@ -148,6 +148,20 @@ function Array.from_iterator(iter)
     return t
 end
 
+--- Create an array and initialize it based on a function.
+-- Creates a new Array and sets the values to the results of a function. This
+-- function is provided the index it is generating a value for.
+-- @param[type=numer] size the size of the newly created Array
+-- @param[type=func] func function to create the value with
+function Array.initialize(size, func)
+    local a = Array()
+    local func = func or function (n) return n end
+    for idx = 1, size do
+        tinsert(a, func(idx))
+    end
+    return a
+end
+
 --- Add on object to the end of an Array.
 -- N.B. This is one of the few functions that returns the same Array. Be wary
 -- of modifications if you are retaining references.
