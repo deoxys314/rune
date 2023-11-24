@@ -6,6 +6,13 @@
 --
 -- Note that Sets are good for containing most types of data except for Sets
 -- themselves. Being based on tables, Sets are compared by address equality.
+--
+-- It is worth noting that creating a Set like so: `Set { true, false, other
+-- }`, (that is, with true as one of the elements) will actually create a set
+-- with the integer that true appears at as a member. This is because behind
+-- the scenes, Sets are tables with each member as a key and true as each
+-- value. So because of how list-like tables are formed in lua, it is
+-- indistinguishable to the constructor from a set containing the integers.
 -- @classmod Set
 local type = type
 local tinsert = table.insert
