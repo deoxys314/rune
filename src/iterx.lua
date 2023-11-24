@@ -34,7 +34,7 @@
 --
 -- local raw_data = magic(it):map(myfunc):skip(2):filter(mypred)
 -- -- note that because these are lazy, the iterator has not yet been advanced!
--- loca data = raw_data:collect()
+-- local data = raw_data:collect()
 -- ```
 --
 -- This is inspired by Rust and Ruby, both of which have similar syntax.
@@ -54,6 +54,7 @@
 
 
 local tinsert, concat = table.insert, table.concat
+local BRACES = { '[', ']' }
 
 local function strip_table_address(obj)
     local obj_type = type(obj)
@@ -67,12 +68,12 @@ local function strip_table_address(obj)
 end
 
 local function iterx_tostring(name, inner, second)
-    local stringbuilder = {name, '<', strip_table_address(inner)}
+    local stringbuilder = {name, BRACES[1], strip_table_address(inner)}
     if second then
         tinsert(stringbuilder, ', ')
         tinsert(stringbuilder, strip_table_address(second))
     end
-    tinsert(stringbuilder, '>')
+    tinsert(stringbuilder, BRACES[2])
     return concat(stringbuilder)
 end
 
@@ -119,26 +120,6 @@ iterx = {
         -- @return an array-like table with the elements returned from the
         -- wrapped iterator
         collect = function(iter) return iterx.sink.collect(iter) end,
-
-        --- Augment an iterator with a count.
-        -- This is similar to the built-in python function enumerate().
-        -- @function magic.enumerate
-        -- @param iter the iterable to wrap
-        -- @return an iterable that will return a count and the value from the iterator
-        -- (e.g.: `3, 'c'`).
-        enumerate = function(iter)
-            local count = 0
-            return setmetatable({}, {
-                __call = function()
-                    count = count + 1
-                    return count, iter()
-                end,
-                __index = iterx.magic,
-                __tostring = function()
-                    return iterx_tostring('Enumerate', iter)
-                end,
-            })
-        end,
 
         --- Transform an iterator, emitting elements that have ben altered by a function.
         -- The classic map function to transform a series of something into a series of something else.
@@ -220,6 +201,31 @@ iterx = {
             })
         end,
 
+        --- Take elements while a predicate returns true
+        -- tktktk
+        takewhile = function(iter, f)
+            local done_returning = false
+            return setmetatable({}, {
+                    __call = function ()
+                        if done_returning then
+                            return nil
+                        else
+                            local val = iter()
+                            if f(val) then
+                                return val
+                            else
+                                done_returning = true
+                                return nil
+                            end
+                        end
+                    end,
+                    __index = iterx.magic,
+                    __tostring = function ()
+                        return iterx_tostring('TakeWhile', iter, f)
+                    end,
+                })
+        end,
+
         --- Use only the first few elements of an iterator.
         -- This iterator may emit fewer than `n` elements, but never more.
         -- @function magic.take
@@ -270,6 +276,30 @@ iterx = {
                 end,
             })
         end,
+
+
+--- Force an iterator to always return nil after the first time it does so.
+-- Lua iterators in general may resume returning values after returning nil, so
+-- this function circumvents that.
+terminate = function (iter)
+    local has_returned_nil = false
+    return setmetatable({}, {
+        __call = function()
+            if has_returned_nil then
+                return nil
+            end
+            local val = iter()
+            if val == nil then
+                has_returned_nil = true
+                return nil
+            else
+                return val
+            end
+        end,
+        __index = iterx.magic,
+        __tostring = function() return iterx_tostring('Terminate', iter) end,
+    })
+end,
 
     },
 
@@ -411,13 +441,16 @@ iterx = {
             end
             local mystep = step or 1
             local current = start - mystep
-            return function()
+            return setmetatable({}, {__call = function()
                 current = current + mystep
                 if current > stop then
                     return nil
                 end
                 return current
-            end
+            end,
+            __index = iterx.magic,
+            __tostring = function () return string.format('Range%s%d, %d, %d%s', BRACES[1], start, stop, step, BRACES[2]) end,
+        })
         end,
 
         --- Repeat a single element endlessly.
@@ -428,7 +461,10 @@ iterx = {
         -- @param element the element that will be repeated
         -- @return an iterator which emits the given element every time it is called
         reiterate = function(element)
-            return function() return element end
+            return setmetatable({}, {__call =  function() return element end, 
+                    __index = iterx.magic,
+                    __tostring = function() return string.format('Reiterate%s%s%s', BRACES[1], element, BRACES[2]) end,
+            })
         end,
 
         --- Emit a given element once as an iterable.
@@ -441,14 +477,18 @@ iterx = {
         -- @return the single-emission iterator
         single_iterable = function(element)
             local emitted = false
-            return function()
+            return setmetatable({}, {
+                    __call = function()
                 if not emitted then
                     emitted = true
                     return element
                 else
                     return nil
                 end
-            end
+            end,
+            __index = iterx.magic.
+            __tostring = function () return string.format('SingleIterable%s%s%s', BRACES[1], element, BRACES[2]) end,
+        })
         end,
 
     },
@@ -466,7 +506,7 @@ setmetatable(iterx.magic, {
     end,
 })
 
---- Filter na iterator, emitting only elements that a predicate is true of.
+--- Filter an iterator, emitting only elements that a predicate is true of.
 function iterx.magic.filter(iter, f)
     return setmetatable({}, {
         __call = function()
@@ -487,44 +527,5 @@ function iterx.magic.filter(iter, f)
     })
 end
 
---- Force an iterator to always return nil after the first time it does so.
--- Lua iterators in general may
-function iterx.magic.terminate(iter)
-    local has_returned_nil = false
-    return setmetatable({}, {
-        __call = function()
-            if has_returned_nil then
-                return nil
-            end
-            local val = iter()
-            if val == nil then
-                has_returned_nil = true
-                return nil
-            else
-                return val
-            end
-        end,
-        __index = iterx.magic,
-        __tostring = function() return iterx_tostring('Terminate', iter) end,
-    })
-end
-
---- Take elements from an iterator while a predicate returns true.
-function iterx.magic.takewhile(iter, f)
-    return setmetatable({}, {
-        __call = function()
-            local val = iter()
-            if f(val) then
-                return val
-            else
-                return nil
-            end
-        end,
-        __index = iterx.magic,
-        __tostring = function()
-            return iterx_tostring('TakeWhile', iter, f)
-        end,
-    })
-end
 
 return iterx
