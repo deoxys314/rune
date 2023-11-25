@@ -47,12 +47,10 @@
 --
 -- The second way is to call the table itself as a function. This will wrap the
 -- iterator in a function which does not transform it at all, but enables the
--- object-oriented interface. Example: `local myiter = iterx.magic(iter);
--- myiter:map(myfunc):take(3)`.
+-- object-oriented interface. Example:
+-- `local myiter = iterx.magic(iter):map(myfunc):take(3)`.
 --
 -- @module iterx
-
-
 local tinsert, concat = table.insert, table.concat
 local BRACES = { '[', ']' }
 
@@ -68,7 +66,7 @@ local function strip_table_address(obj)
 end
 
 local function iterx_tostring(name, inner, second)
-    local stringbuilder = {name, BRACES[1], strip_table_address(inner)}
+    local stringbuilder = { name, BRACES[1], strip_table_address(inner) }
     if second then
         tinsert(stringbuilder, ', ')
         tinsert(stringbuilder, strip_table_address(second))
@@ -105,9 +103,7 @@ iterx = {
                     end
                 end,
                 __index = iterx.magic,
-                __tostring = function()
-                    return iterx_tostring('Chain', iter, other)
-                end,
+                __tostring = function() return iterx_tostring('Chain', iter, other) end,
             })
         end,
 
@@ -136,9 +132,27 @@ iterx = {
                     end
                 end,
                 __index = iterx.magic,
-                __tostring = function()
-                    return iterx_tostring('Map', iter, f)
+                __tostring = function() return iterx_tostring('Map', iter, f) end,
+            })
+        end,
+        --- Filter an iterator, emitting only elements that a predicate is true of.
+        filter = function(iter, f)
+            return setmetatable({}, {
+                __call = function()
+                    local val = iter()
+                    if val == nil then
+                        return nil
+                    end
+                    while not f(val) do
+                        val = iter()
+                        if val == nil then
+                            return nil
+                        end
+                    end
+                    return val
                 end,
+                __index = iterx.magic,
+                __tostring = function() return iterx_tostring('Filter', iter, f) end,
             })
         end,
 
@@ -159,9 +173,7 @@ iterx = {
                     return iter()
                 end,
                 __index = iterx.magic,
-                __tostring = function()
-                    return iterx_tostring('Skip', iter, n)
-                end,
+                __tostring = function() return iterx_tostring('Skip', iter, n) end,
             })
         end,
 
@@ -195,9 +207,7 @@ iterx = {
                     return val
                 end,
                 __index = iterx.magic,
-                __tostring = function()
-                    return iterx_tostring('SkipWhile', iter, f)
-                end,
+                __tostring = function() return iterx_tostring('SkipWhile', iter, f) end,
             })
         end,
 
@@ -206,24 +216,22 @@ iterx = {
         takewhile = function(iter, f)
             local done_returning = false
             return setmetatable({}, {
-                    __call = function ()
-                        if done_returning then
-                            return nil
+                __call = function()
+                    if done_returning then
+                        return nil
+                    else
+                        local val = iter()
+                        if f(val) then
+                            return val
                         else
-                            local val = iter()
-                            if f(val) then
-                                return val
-                            else
-                                done_returning = true
-                                return nil
-                            end
+                            done_returning = true
+                            return nil
                         end
-                    end,
-                    __index = iterx.magic,
-                    __tostring = function ()
-                        return iterx_tostring('TakeWhile', iter, f)
-                    end,
-                })
+                    end
+                end,
+                __index = iterx.magic,
+                __tostring = function() return iterx_tostring('TakeWhile', iter, f) end,
+            })
         end,
 
         --- Use only the first few elements of an iterator.
@@ -245,9 +253,7 @@ iterx = {
                     end
                 end,
                 __index = iterx.magic,
-                __tostring = function()
-                    return iterx_tostring('Take', iter, n)
-                end,
+                __tostring = function() return iterx_tostring('Take', iter, n) end,
             })
         end,
 
@@ -271,35 +277,32 @@ iterx = {
                     end
                 end,
                 __index = iterx.magic,
-                __tostring = function()
-                    return iterx_tostring('Zip', iter, other)
-                end,
+                __tostring = function() return iterx_tostring('Zip', iter, other) end,
             })
         end,
 
-
---- Force an iterator to always return nil after the first time it does so.
--- Lua iterators in general may resume returning values after returning nil, so
--- this function circumvents that.
-terminate = function (iter)
-    local has_returned_nil = false
-    return setmetatable({}, {
-        __call = function()
-            if has_returned_nil then
-                return nil
-            end
-            local val = iter()
-            if val == nil then
-                has_returned_nil = true
-                return nil
-            else
-                return val
-            end
+        --- Force an iterator to always return nil after the first time it does so.
+        -- Lua iterators in general may resume returning values after returning nil, so
+        -- this function circumvents that.
+        terminate = function(iter)
+            local has_returned_nil = false
+            return setmetatable({}, {
+                __call = function()
+                    if has_returned_nil then
+                        return nil
+                    end
+                    local val = iter()
+                    if val == nil then
+                        has_returned_nil = true
+                        return nil
+                    else
+                        return val
+                    end
+                end,
+                __index = iterx.magic,
+                __tostring = function() return iterx_tostring('Terminate', iter) end,
+            })
         end,
-        __index = iterx.magic,
-        __tostring = function() return iterx_tostring('Terminate', iter) end,
-    })
-end,
 
     },
 
@@ -310,7 +313,7 @@ end,
     operators = {
         --- +
         -- @function operators.add
-        add = function (first, second) return first + second end,
+        add = function(first, second) return first + second end,
     },
 
     sink = {
@@ -441,16 +444,20 @@ end,
             end
             local mystep = step or 1
             local current = start - mystep
-            return setmetatable({}, {__call = function()
-                current = current + mystep
-                if current > stop then
-                    return nil
-                end
-                return current
-            end,
-            __index = iterx.magic,
-            __tostring = function () return string.format('Range%s%d, %d, %d%s', BRACES[1], start, stop, step, BRACES[2]) end,
-        })
+            return setmetatable({}, {
+                __call = function()
+                    current = current + mystep
+                    if current > stop then
+                        return nil
+                    end
+                    return current
+                end,
+                __index = iterx.magic,
+                __tostring = function()
+                    return string.format('Range%s%d, %d, %d%s', BRACES[1], start, stop, step,
+                                         BRACES[2])
+                end,
+            })
         end,
 
         --- Repeat a single element endlessly.
@@ -461,9 +468,12 @@ end,
         -- @param element the element that will be repeated
         -- @return an iterator which emits the given element every time it is called
         reiterate = function(element)
-            return setmetatable({}, {__call =  function() return element end, 
-                    __index = iterx.magic,
-                    __tostring = function() return string.format('Reiterate%s%s%s', BRACES[1], element, BRACES[2]) end,
+            return setmetatable({}, {
+                __call = function() return element end,
+                __index = iterx.magic,
+                __tostring = function()
+                    return string.format('Reiterate%s%s%s', BRACES[1], element, BRACES[2])
+                end,
             })
         end,
 
@@ -478,17 +488,19 @@ end,
         single_iterable = function(element)
             local emitted = false
             return setmetatable({}, {
-                    __call = function()
-                if not emitted then
-                    emitted = true
-                    return element
-                else
-                    return nil
-                end
-            end,
-            __index = iterx.magic.
-            __tostring = function () return string.format('SingleIterable%s%s%s', BRACES[1], element, BRACES[2]) end,
-        })
+                __call = function()
+                    if not emitted then
+                        emitted = true
+                        return element
+                    else
+                        return nil
+                    end
+                end,
+                __index = iterx.magic,
+                __tostring = function()
+                    return string.format('SingleIterable%s%s%s', BRACES[1], element, BRACES[2])
+                end,
+            })
         end,
 
     },
@@ -499,33 +511,9 @@ setmetatable(iterx.magic, {
         return setmetatable({}, {
             __call = iter,
             __index = iterx.magic,
-            __tostring = function()
-                return iterx_tostring('Magic', iter)
-            end,
+            __tostring = function() return iterx_tostring('Magic', iter) end,
         })
     end,
 })
-
---- Filter an iterator, emitting only elements that a predicate is true of.
-function iterx.magic.filter(iter, f)
-    return setmetatable({}, {
-        __call = function()
-            local val = iter()
-            if val == nil then
-                return nil
-            end
-            while not f(val) do
-                val = iter()
-                if val == nil then
-                    return nil
-                end
-            end
-            return val
-        end,
-        __index = iterx.magic,
-        __tostring = function() return iterx_tostring('Filter', iter, f) end,
-    })
-end
-
 
 return iterx
